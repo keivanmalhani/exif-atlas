@@ -1,0 +1,17 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.pytest_cache/
+.coverage
+htmlcov/
+.venv/
+venv/
+.tox/
+
+# Generated reports. These can contain location data; keep them out of git.
+atlas.html
+*.atlas.html
+report.json
