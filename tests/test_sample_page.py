@@ -301,6 +301,48 @@ def test_finished_page_is_still_self_contained():
     assert 'href="%s"' % sample.REPO_URL in document
 
 
+def test_reroot_replaces_the_temporary_path_in_the_body():
+    """The path is printed under the headline as well as in the title. A
+    published page naming a temp directory reads as a mistake.
+
+    Scoped to the body paragraph on purpose: reroot does not touch the title,
+    which is retitle's job, so the whole document still holds the path at this
+    point. test_the_finished_page_names_no_temporary_directory is the one that
+    checks both edits together.
+    """
+    original = rendered_report()
+    assert '<p class="path">/tmp/whatever</p>' in original
+    document = sample.reroot(original, "a generated sample library")
+    assert '<p class="path">/tmp/whatever</p>' not in document
+    assert '<p class="path">a generated sample library</p>' in document
+
+
+def test_reroot_touches_nothing_but_that_one_paragraph():
+    original = rendered_report()
+    document = sample.reroot(original, "x")
+    assert original.count('<p class="path">') == 1
+    assert document.count('<p class="path">') == 1
+    # Everything before the paragraph and everything after it is untouched.
+    head, tail = original.split('<p class="path">/tmp/whatever</p>')
+    assert document == head + '<p class="path">x</p>' + tail
+
+
+def test_reroot_refuses_a_document_without_a_path_line():
+    import pytest
+
+    with pytest.raises(ValueError):
+        sample.reroot("<html><body>no path here</body></html>", "x")
+
+
+def test_the_finished_page_names_no_temporary_directory():
+    """The whole point: nothing on the published page mentions /tmp."""
+    document = sample.finish_page(rendered_report(),
+                                  sample.library_summary(
+                                      sample.plan_frames(seed=5)))
+    assert "/tmp/" not in document
+    assert "a generated sample library" in document
+
+
 # ---------------------------------------------------------------------------
 # End to end, small
 # ---------------------------------------------------------------------------
@@ -341,5 +383,7 @@ def test_the_published_page_exists_and_is_the_tool_s_own_output():
     assert sample.BANNER_ANCHOR in document
     assert "A sample. Nobody took these pictures." in document
     assert "exif-atlas: a sample atlas" in document
+    # The temporary directory the sample was built in must not be on the page.
+    assert "/tmp/" not in document
     urls = set(re.findall(r'https?://[^\s"\'<>]+', document))
     assert urls == {sample.REPO_URL}

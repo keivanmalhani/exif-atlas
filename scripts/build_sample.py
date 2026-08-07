@@ -18,7 +18,7 @@ actual scan through exif_atlas.cli.main, and writes what comes out. If the
 renderer changes, rerunning this changes the published page. Nothing about
 the report is faked.
 
-Two edits are made to the tool's output afterwards, both cosmetic and both
+Three edits are made to the tool's output afterwards, all cosmetic and all
 declared here so nobody has to diff the file to find them:
 
   1. An honest header is inserted at the top of the page saying, in plain
@@ -29,6 +29,9 @@ declared here so nobody has to diff the file to find them:
   2. The <title> is rewritten. The tool titles a report after the folder it
      scanned, which here is a temporary directory, and a browser tab reading
      "/tmp/exif-atlas-sample-8fc21a/sample-library" looks like a mistake.
+  3. The same temporary path is printed under the headline, and is replaced
+     there too, for the same reason. It says what the library actually is
+     instead.
 
 Nothing else is touched. The numbers, the charts, the prose and the layout
 are exactly what the tool produced.
@@ -70,6 +73,7 @@ import argparse
 import math
 import os
 import random
+import re
 import shutil
 import sys
 import tempfile
@@ -585,10 +589,31 @@ def retitle(document, title):
     return document[:start] + "<title>" + title + document[end:]
 
 
+def reroot(document, label):
+    """Replace the scanned path the report prints under the headline.
+
+    The tool names the folder it scanned, which here is a temporary directory,
+    and a published page that says /tmp/exif-atlas-sample-aabx8t2g/sample-library
+    reads as a mistake to anyone who lands on it. The class is the renderer's
+    own, emitted once, so an exact match on the opening tag is unambiguous.
+    """
+    pattern = re.compile(r'<p class="path">.*?</p>', re.DOTALL)
+    if not pattern.search(document):
+        raise ValueError('no <p class="path"> in the rendered report; the '
+                         "renderer stopped printing the scanned root and this "
+                         "script needs updating")
+    return pattern.sub('<p class="path">%s</p>' % label, document, count=1)
+
+
 def finish_page(document, summary=None):
-    """Apply both edits. Kept together so there is one list of them."""
+    """Apply the edits. Kept together so there is one list of them."""
     document = insert_banner(document, sample_banner(summary))
-    return retitle(document, "exif-atlas: a sample atlas")
+    document = retitle(document, "exif-atlas: a sample atlas")
+    label = "a generated sample library"
+    if summary:
+        label = "a generated sample library, %s files" % "{:,}".format(
+            summary["files"])
+    return reroot(document, label)
 
 
 # ---------------------------------------------------------------------------
