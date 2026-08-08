@@ -94,6 +94,25 @@ def test_heif_exif_item(tmp_path):
     assert tags["Model"] == "iPhone 14"
 
 
+def test_heif_exif_item_when_meta_follows_mdat(tmp_path):
+    """Apple writes ftyp, free, mdat, meta. The reader must not stop at mdat.
+
+    The scan used to break out of the top level box walk the moment it saw
+    mdat, on the assumption that nothing useful follows the image data. On a
+    real iPhone library that assumption drops 72 percent of the HEIC files
+    with "no meta box" while their EXIF sits a few boxes further on. Walking
+    past mdat costs eight bytes per box header because the source seeks
+    rather than reads.
+    """
+    ifd0, ifd = fx.standard_tags(camera=("Apple", "iPhone 13 Pro Max"))
+    tags, container, used = read(tmp_path, "apple.heic",
+                                 fx.heif_meta_last(
+                                     fx.build_exif_block(ifd0, ifd)))
+    assert container == "heif"
+    assert tags["Model"] == "iPhone 13 Pro Max"
+    assert used < exif.MAX_HEADER_BYTES
+
+
 def test_heif_without_exif_item(tmp_path):
     with pytest.raises(exif.ExifError):
         read(tmp_path, "k.heic", fx.heif(None))

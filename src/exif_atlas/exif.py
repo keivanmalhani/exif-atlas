@@ -591,11 +591,14 @@ def _bmff_boxes(src: _Source, start: int, end: int,
 def _exif_from_heif(src: _Source, size: int) -> dict:
     """Find the Exif item in an ISO base media file and read it."""
     meta_range = None
+    # Do not stop at mdat. Apple writes ftyp, free, mdat, meta, so on a real
+    # iPhone library the metadata is usually behind the image data, and an
+    # early exit here reported "no meta box" for 2,611 of 3,622 HEIC files.
+    # Walking past mdat is cheap: _bmff_boxes seeks to each box and reads
+    # only its eight byte header, so the byte budget barely moves.
     for kind, body, box_end in _bmff_boxes(src, 0, size):
         if kind == b"meta":
             meta_range = (body + 4, box_end)  # skip version and flags
-            break
-        if kind == b"mdat":
             break
     if meta_range is None:
         raise ExifError("no meta box")
